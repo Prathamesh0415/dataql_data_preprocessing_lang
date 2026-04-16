@@ -68,3 +68,27 @@ class DataQLEngine:
                     print(f"[EXECUTED] GROUPED BY {group_col}, AGGREGATED {agg_func}({target_col}) AS {alias}")
                 else:
                     print(f"[ERROR] Unsupported aggregate function: {agg_func}")
+
+            elif stmt.data == 'compute_stmt':
+                new_col = stmt.children[0].value
+                math_expr = stmt.children[1]
+                left_node = math_expr.children[0]
+                op = math_expr.children[1].value
+                right_node = math_expr.children[2]
+                def resolve_operand(node):
+                    if node.data == 'var':
+                        return self.df[node.children[0].value]
+                    elif node.data == 'num':
+                        return float(node.children[0].value)
+                left_val = resolve_operand(left_node)
+                right_val = resolve_operand(right_node)
+                if op == '+':
+                    self.df[new_col] = left_val + right_val
+                elif op == '-':
+                    self.df[new_col] = left_val - right_val
+                elif op == '*':
+                    self.df[new_col] = left_val * right_val
+                elif op == '/':
+                    self.df[new_col] = left_val / right_val
+
+                print(f"[EXECUTED] COMPUTED new column: {new_col}")
