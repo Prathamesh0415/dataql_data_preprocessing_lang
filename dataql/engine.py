@@ -1,4 +1,5 @@
 import pandas as pd
+import os
 
 class DataQLEngine:
     def __init__(self):
@@ -7,18 +8,20 @@ class DataQLEngine:
     def execute(self, tree):
         for stmt in tree.children:
             if stmt.data == 'load_stmt':
-                filename = stmt.children[0].value.strip('"')
+                raw_path = stmt.children[0].value.replace('"', '').strip()
+                filename = os.path.normpath(raw_path)
+                
+                if not os.path.exists(filename):
+                    print(f"[ERROR] File not found: {filename}")
+                    return
+
                 self.df = pd.read_csv(filename)
                 print(f"[EXECUTED] LOADED data from {filename}")
 
             elif stmt.data == 'keep_stmt':
                 columns = [child.value for child in stmt.children]
-
                 self.df = self.df[columns]
-
                 print(f"[EXECUTED] KEPT columns: {columns}")
-
-                
 
             elif stmt.data == 'filter_stmt':
                 for condition in stmt.children:
@@ -44,9 +47,14 @@ class DataQLEngine:
                 order_str = "ASC" if is_ascending else "DESC"
                 print(f"[EXECUTED] SORTED BY {col} {order_str}")
 
-
             elif stmt.data == 'save_stmt':
-                filename = stmt.children[0].value.strip('"')
+                raw_path = stmt.children[0].value.replace('"', '').strip()
+                filename = os.path.normpath(raw_path)
+                
+                dir_name = os.path.dirname(filename)
+                if dir_name:
+                    os.makedirs(dir_name, exist_ok=True)
+                
                 self.df.to_csv(filename, index=False)
                 print(f"[EXECUTED] SAVED results to {filename}") 
 
@@ -92,3 +100,34 @@ class DataQLEngine:
                     self.df[new_col] = left_val / right_val
 
                 print(f"[EXECUTED] COMPUTED new column: {new_col}")
+
+            elif stmt.data == 'rename_stmt':
+                rename_dict = {}
+                for pair in stmt.children:
+                    old_col = pair.children[0].value
+                    new_col = pair.children[1].value
+                    rename_dict[old_col] = new_col
+                
+                self.df = self.df.rename(columns=rename_dict)
+                print(f"[EXECUTED] RENAMED columns: {rename_dict}")
+            
+            elif stmt.data == 'dropnull_stmt':
+                original_len = len(self.df)
+                self.df = self.df.dropna()
+                new_len = len(self.df)
+                print(f"[EXECUTED] DROPPED NULLS (Removed {original_len - new_len} rows)")
+
+            elif stmt.data == 'fillnull_stmt':
+                col = stmt.children[0].value
+                val_token = stmt.children[1].value
+                try:
+                    val = float(val_token) if '.' in val_token else int(val_token)
+                except ValueError:
+                    val = val_token.strip('"')
+                self.df[col] = self.df[col].fillna(val)
+                print(f"[EXECUTED] FILLED NULLS in '{col}' with '{val}'")
+
+            elif stmt.data == 'limit_stmt':
+                limit_num = int(stmt.children[0].value)
+                self.df = self.df.head(limit_num)
+                print(f"[EXECUTED] LIMITED results to top {limit_num}")

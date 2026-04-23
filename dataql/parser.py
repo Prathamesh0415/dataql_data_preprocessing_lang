@@ -10,12 +10,29 @@ grammar = """
               | save_stmt
               | group_stmt 
               | compute_stmt
+              | rename_stmt    
+              | dropnull_stmt  
+              | fillnull_stmt  
+              | limit_stmt     
 
     load_stmt: "LOAD" STRING ";"
+    
     keep_stmt: "KEEP" CNAME ("," CNAME)* ";"
+    
     filter_stmt: "FILTER" condition ("AND" condition)* ";"
-    sort_stmt: "SORT" "BY" CNAME sort_order ";"
+   
+     sort_stmt: "SORT" "BY" CNAME sort_order ";"
+
     save_stmt: "SAVE" STRING ";"
+
+    rename_stmt: "RENAME" rename_pair ("," rename_pair)* ";"
+    rename_pair: CNAME "TO" CNAME
+
+    dropnull_stmt: "DROPNULL" ";"
+
+    fillnull_stmt: "FILLNULL" CNAME "WITH" value ";"
+
+    limit_stmt: "LIMIT" NUMBER ";"
     
     compute_stmt: "COMPUTE" CNAME "=" math_expr ";"
     math_expr: math_operand MATH_OP math_operand
